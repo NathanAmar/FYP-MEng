@@ -1,0 +1,101 @@
+Bootstrap: library
+From: airl_lab/default/airl_env:base_93277727
+
+
+%labels
+    Author a.cully@imperial.ac.uk
+    Version v2.2.0
+
+%files
+    ./resources/setup_unidirectional.sh /git/sferes2/setup.sh
+    ./resources/setup_adapt.sh /git/limbo2/setup.sh
+    	
+%post 
+   mkdir /homes
+   export LD_LIBRARY_PATH="/workspace/lib:$LD_LIBRARY_PATH"
+   apt-get update 
+   apt-get upgrade -y 
+   apt-get install -y ffmpeg zip python-simplejson
+   apt-get install -y libgtest-dev libtool
+
+   cd /git/sferes2/exp/
+   mkdir fyp-a-1-unidirectional-adaptation
+
+   #gtest for libcmaes
+   cd /usr/src/gtest
+   mkdir build && cd build
+   cmake ..
+   make
+   cp lib/*.a /usr/lib
+
+   cd /git/
+
+   # libcmaes for limbo
+   wget https://codeload.github.com/resibots/libcmaes/zip/refs/heads/fix_flags_native
+   unzip fix_flags_native && cd libcmaes-fix_flags_native
+   ./autogen.sh
+   ./configure
+   make -j4
+   make install
+   ldconfig
+   cd ..
+
+   # nlopt for limbo
+   wget http://members.loria.fr/JBMouret/mirrors/nlopt-2.4.2.tar.gz
+   tar -zxvf nlopt-2.4.2.tar.gz && cd nlopt-2.4.2
+   ./configure -with-cxx --enable-shared --without-python --without-matlab --without-octave
+   make install
+   ldconfig
+   cd ..
+
+   git clone https://github.com/resibots/limbo.git
+   cd limbo
+   mkdir exp
+   cd exp/
+   ln -s ../../sferes2/exp/fyp-a-1-unidirectional-adaptation ./
+   cd -
+
+   export LC_ALL=C; unset LANGUAGE
+
+
+   # more code can come here
+   # ...
+   # ...
+   #====================================================================================================
+   exit 0 #NOTFORFINAL - the lines below this "exit" will be executed only when building the final image
+   #====================================================================================================
+   
+   # Those lines will clone the project in the folder /git/sferes2/exp/
+   cd /git/sferes2/exp/
+   #CLONEHERE
+   
+   mv /git/limbo2/* /git/limbo/ 
+   rm -rf /git/limbo2
+
+   # Building the experiments
+   cd /git/sferes2/
+   ./setup.sh
+
+   cd /git/limbo/
+   ./setup.sh
+
+
+%runscript
+    CURPATH=$(pwd)
+    if [ ! -d ./results ]; then
+        mkdir results
+    fi
+    cd /git/sferes2/
+    # running the experiment (the -d option allows to define the directory where the results should be stored
+    PATHNAME=$(date +%Y-%m-%d_%H_%M_%S)_$$
+    mkdir $CURPATH/results/$PATHNAME
+    
+    #build/exp/fyp-a-1-unidirectional-adaptation/a1_foot -d $CURPATH/results/$PATHNAME
+    #build/exp/fyp-a-1-unidirectional-adaptation/a1_foot_calf -d $CURPATH/results/$PATHNAME
+    #build/exp/fyp-a-1-unidirectional-adaptation/a1_foot_calf_thigh -d $CURPATH/results/$PATHNAME
+    build/exp/fyp-a-1-unidirectional-adaptation/a1_foot_calf_knee_d_3_8 -d $CURPATH/results/$PATHNAME
+
+
+
+%help
+    This is the development and running environment of the FYP - Learning Algorithms for Damage recovery with a quadruped robot.
